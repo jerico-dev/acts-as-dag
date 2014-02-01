@@ -767,7 +767,9 @@ module Dag
       sink = below_leg.sink
       bridging_leg = self.class.find_link(source, sink)
       if bridging_leg.nil?
-        bridging_leg = self.class.new(self.class.conditions_for(source, sink))
+        self.class.send(:with_exclusive_scope) do
+          bridging_leg = self.class.new(self.class.conditions_for(source, sink))
+        end
         bridging_leg.make_indirect
         bridging_leg.internal_count = 0
       end
