@@ -114,7 +114,7 @@ module Dag
     #internal fields
     code = 'def field_check ' + "\n"
     internal_columns.each do |column|
-      code +=  "if " + column + "_changed? \n" + ' raise ActiveRecord::ActiveRecordError, "Column: '+column+' cannot be changed for an existing record it is immutable"' + "\n end \n"
+      code +=  "if " + column + "_changed? and not do_not_perpetuate \n" + ' raise ActiveRecord::ActiveRecordError, "Column: '+column+' cannot be changed for an existing record it is immutable"' + "\n end \n"
     end
     code += 'end'
     module_eval code
@@ -601,20 +601,22 @@ module Dag
         self.errors.add_to_base('Link must start and end in different places')
       end
       #make sure not impossible
-      if self.direct?
-        if self.count != 0
-          self.errors.add_to_base('Cannot create a direct link with a count other than 0')
-        end
-      else
-        if self.count < 1
-          self.errors.add_to_base('Cannot create an indirect link with a count less than 1')
+      unless self.do_not_perpetuate
+        if self.direct?
+          if self.count != 0
+            self.errors.add_to_base('Cannot create a direct link with a count other than 0')
+          end
+        else
+          if self.count < 1
+            self.errors.add_to_base('Cannot create an indirect link with a count less than 1')
+          end
         end
       end
     end
 
     #Validations on update. Makes sure that something changed, that not making a lonely link indirect, and count is correct.
     def validate_on_update
-      unless self.changed?
+      unless self.do_not_perpetuate or self.changed?
         self.errors.add_to_base('No changes')
       end
       if direct_changed?
